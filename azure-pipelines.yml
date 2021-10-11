@@ -3,6 +3,13 @@ trigger:
 variables:
   buildConfiguration: Release
   releaseBranchName: release
+schedules:
+- cron: 0 3 * * *
+  displayName: Deploy every day at 3 A.M.
+  branches:
+    include:
+    - release
+  always: false
 stages:
 - stage: Build
   displayName: Build the web application
@@ -79,7 +86,30 @@ stages:
           - task: AzureWebApp@1
             displayName: 'Azure App Service Deploy: website'
             inputs:
-              azureSubscription: FlosServiceConnection
+              azureSubscription: Resource Manager - Tailspin - Space Game
               appName: $(WebAppNameDev)
               package: $(Pipeline.Workspace)/drop/$(buildConfiguration)/*.zip
               appType: webAppLinux
+- stage: Test
+  displayName: Deploy to the test environment
+  dependsOn: Dev
+  jobs:
+  - deployment: Deploy
+    pool:
+      vmImage: ubuntu-20.04
+    environment: test
+    variables:
+    - group: Release
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: drop
+          - task: AzureWebApp@1
+            displayName: 'Azure App Service Deploy: website'
+            inputs:
+              appType: webAppLinux
+              azureSubscription: Resource Manager - Tailspin - Space Game
+              appName: $(WebAppNameTest)
+              package: $(Pipeline.Workspace)/drop/$(buildConfiguration)/*.zip
